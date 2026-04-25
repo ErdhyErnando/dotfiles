@@ -7,6 +7,8 @@ vim.g.background = "light"
 
 vim.opt.swapfile = false
 
+vim.keymap.set("i", "jj", "<Esc>", {})
+
 -- Navigate vim panes better
 vim.keymap.set("n", "<c-k>", ":wincmd k<CR>")
 vim.keymap.set("n", "<c-j>", ":wincmd j<CR>")
