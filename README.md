@@ -8,7 +8,7 @@ Located in `nvim/nvim/` (symlinked to `~/.config/nvim`). Managed with [lazy.nvim
 
 ### Theme
 
-[gruvbox.nvim](https://github.com/ellisonleao/gruvbox.nvim) with transparent mode enabled. [catppuccin/nvim](https://github.com/catppuccin/nvim) is also included but disabled.
+AstroTheme — [`astrodark`](https://github.com/AstroNvim/astrotheme) (dark) / `astrolight` (light), switched automatically with the system dark/light mode (see [Dark / Light Mode Sync](#dark--light-mode-sync)). Wired up in `lua/plugins/dark-mode.lua`.
 
 ### Plugins
 
@@ -176,7 +176,9 @@ Located in `tmux/.tmux.conf` (symlinked to `~/.tmux.conf`). Uses [TPM](https://g
 
 ### Theme
 
-[catppuccin/tmux](https://github.com/catppuccin/tmux) (macchiato flavour) with transparent status bar.
+[catppuccin/tmux](https://github.com/catppuccin/tmux) with transparent status bar. Flavours: `macchiato` (dark) / `latte` (light) — switched automatically with the system dark/light mode (see [Dark / Light Mode Sync](#dark--light-mode-sync)).
+
+> Note: since v2.x the option is spelled `@catppuccin_flavor` (US spelling). The old `@catppuccin_flavour` is silently ignored.
 
 ### Keybindings
 
@@ -195,3 +197,27 @@ Positioned at the top. Displays:
 - Current working directory (truncated)
 - Zoom indicator when pane is zoomed
 - Date and time
+
+---
+
+## Dark / Light Mode Sync
+
+The GNOME quick-settings dark/light toggle drives the theme in ghostty, tmux, and Neovim:
+
+| Tool | Mechanism | Dark | Light |
+| ---- | --------- | ---- | ----- |
+| ghostty | `theme = light:...,dark:...` follows the desktop theme natively (see `ghostty/config.ghostty`) | Desert | Rose Pine Dawn |
+| tmux | `tmux-theme-sync.sh` + `tmux-theme.service` (systemd user unit) watch the freedesktop color-scheme portal for `SettingChanged` and swap the catppuccin flavour | macchiato | latte |
+| Neovim | [`auto-dark-mode.nvim`](https://github.com/f-person/auto-dark-mode.nvim) listens to the same portal signal (via `dbus-monitor`) and flips the colorscheme | astrodark | astrolight |
+
+Everything hangs off one signal: the GNOME toggle sets `org.gnome.desktop.interface color-scheme`, which `xdg-desktop-portal-gnome` broadcasts as `org.freedesktop.appearance color-scheme` (`SettingChanged`). Each tool picks it up independently.
+
+`tmux/theme-sync.sh` can also be used manually:
+
+```sh
+~/.local/bin/tmux-theme-sync.sh          # apply the current system mode
+~/.local/bin/tmux-theme-sync.sh dark     # force macchiato
+~/.local/bin/tmux-theme-sync.sh watch    # run the watcher by hand
+```
+
+The watcher is enabled by `setup.sh` (`systemctl --user enable --now tmux-theme.service`).

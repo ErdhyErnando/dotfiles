@@ -1,0 +1,6 @@
+# Follows the GNOME dark/light toggle automatically.
+theme = light:Rose Pine Dawn,dark:Desert
+background-opacity = 0.9
+background-blur-radius = 15
+
+font-family = "0xProto Nerd Font"

@@ -54,7 +54,7 @@ install_system_pkgs() {
     debian)
       info "Updating apt cache..."
       maybe_sudo apt-get update -qq
-      maybe_sudo apt-get install -y -qq git curl unzip ripgrep fd-find neovim
+      maybe_sudo apt-get install -y -qq git curl unzip ripgrep fd-find neovim tmux
       # fd-find binary is called fdfind on Debian
       if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         mkdir -p "$HOME/.local/bin"
@@ -64,11 +64,13 @@ install_system_pkgs() {
       ;;
 
     fedora)
-      maybe_sudo dnf install -y git curl unzip ripgrep fd-find neovim
+      maybe_sudo dnf install -y git curl unzip ripgrep fd-find neovim tmux
+      # Ghostty terminal (best-effort; ships in Fedora repos since F41+)
+      maybe_sudo dnf install -y ghostty 2>/dev/null || warn "ghostty not installed; install manually if desired."
       ;;
 
     arch)
-      maybe_sudo pacman -S --noconfirm --needed git curl unzip ripgrep fd neovim
+      maybe_sudo pacman -S --noconfirm --needed git curl unzip ripgrep fd neovim tmux
       ;;
 
     suse)
@@ -185,6 +187,10 @@ do_backups() {
   backup_if_exists "$HOME/.local/share/nvim" "nvim-data"
   backup_if_exists "$HOME/.local/state/nvim" "nvim-state"
   backup_if_exists "$HOME/.cache/nvim"       "nvim-cache"
+  backup_if_exists "$HOME/.tmux.conf"        "tmux/.tmux.conf"
+  backup_if_exists "$HOME/.config/ghostty/config.ghostty" "ghostty/config.ghostty"
+  backup_if_exists "$HOME/.local/bin/tmux-theme-sync.sh"  "tmux/theme-sync.sh"
+  backup_if_exists "$HOME/.config/systemd/user/tmux-theme.service" "tmux/systemd/user/tmux-theme.service"
 }
 
 # ── Phase 3: symlink configs ─────────────────────────────────
@@ -200,6 +206,32 @@ do_symlinks() {
   step "Creating symlinks"
   # This branch keeps the nvim config under <repo>/nvim/nvim
   symlink "$DOTFILES/nvim/nvim" "$HOME/.config/nvim"
+  symlink "$DOTFILES/tmux/.tmux.conf" "$HOME/.tmux.conf"
+  symlink "$DOTFILES/ghostty/config.ghostty" "$HOME/.config/ghostty/config.ghostty"
+  symlink "$DOTFILES/tmux/theme-sync.sh" "$HOME/.local/bin/tmux-theme-sync.sh"
+  symlink "$DOTFILES/tmux/systemd/user/tmux-theme.service" "$HOME/.config/systemd/user/tmux-theme.service"
+
+  # TPM (tmux plugin manager) — catppuccin installs on first tmux start via prefix + I
+  if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
+    git clone --depth=1 https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+    info "Cloned TPM. Open tmux and press prefix + I to install plugins."
+  fi
+}
+
+# ── Phase 3b: dark/light theme watcher (tmux) ─────────────
+
+do_theme_watcher() {
+  step "Enabling tmux dark/light theme watcher"
+  if command -v systemctl &>/dev/null && systemctl --user daemon-reload 2>/dev/null; then
+    if systemctl --user enable --now tmux-theme.service 2>/dev/null; then
+      info "tmux-theme watcher enabled (syncs tmux with the GNOME dark/light toggle)."
+    else
+      warn "Could not start tmux-theme.service (no graphical session yet?). Run later:"
+      warn "  systemctl --user enable --now tmux-theme.service"
+    fi
+  else
+    warn "systemd user session unavailable; tmux will still sync on each tmux.conf reload."
+  fi
 }
 
 # ── Phase 4: Neovim plugins (headless) ───────────────────────
@@ -266,6 +298,7 @@ main() {
   install_nerd_font
   do_backups
   do_symlinks
+  do_theme_watcher
   do_nvim_plugins
   do_healthcheck
   print_done
